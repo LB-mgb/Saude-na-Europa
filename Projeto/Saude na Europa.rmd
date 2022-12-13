@@ -1,0 +1,318 @@
+---
+title: "Saúde na Europa"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme: journal
+
+---
+
+```{r setup, include=FALSE}
+
+library(flexdashboard)
+library(shiny)
+library(readr)
+library(readxl)
+library(cowplot)
+library(ggplot2)
+library(reshape2)
+library(plotly)
+library(dplyr)
+
+```
+
+```{r}
+PercentagemDoPIB <- read_excel("PercentagemDoPIB.xlsx")
+
+MedicosPor100Mil <- read_excel("MedicosPor100Mil.xlsx")
+
+MedicosPorEspecialidade <- read_excel("MedicosPorEspecialidade.xlsx")
+
+dfMPE <- subset(MedicosPorEspecialidade,MedicosPorEspecialidade$`2020 CG`>0 & MedicosPorEspecialidade$`2020 GEM` >0 & MedicosPorEspecialidade$`2020 GEC`>0)
+
+dfMPE2020 <- dfMPE[,c(1,3,5,7)]
+
+df <- read_excel("df.xlsx")
+
+dfMPE2020 <- melt(dfMPE2020)
+colnames(dfMPE2020) <- c('Países','Especialidade','Médicos')
+
+dfMPE <- subset(MedicosPorEspecialidade,MedicosPorEspecialidade$`1993 CG`>0 & MedicosPorEspecialidade$`1993 GEM` >0 & MedicosPorEspecialidade$`1993 GEC`>0)
+dfMPE1993 <- dfMPE[,c(1,2,4,6)]
+dfMPE1993 <- melt(dfMPE1993)
+colnames(dfMPE1993) <- c('Países','Especialidade','Médicos')
+
+df$popMil = c(8.956, 11.59 , 6.899, 10.7, 83.13,
+              47.33, 3.899, 9.71, 5.028, 59.07, 2.795, 10.3, 19.12)
+df$popMil = df$popMil*1000000
+
+df$CG2020 = round((df$CG2020*100/df$popMil)*100, 2)
+df$GEM2020 = round((df$GEM2020*100/df$popMil)*100, 2)
+df$GEC2020 = round((df$GEC2020*100/df$popMil)*100,2)
+
+require(rvest)
+require(xml2)
+webpage <- read_html("https://www.pordata.pt/portugal/medicos+nao+especialistas+e+especialistas+por+especialidade-147")
+data<- webpage %>% html_elements("table") %>% .[[13]] %>% html_table()
+
+#Eliminar primeira linha
+data <-  data[-1,]
+#Dar as colunas o nome 
+colnames(data) <- paste(data[1,])
+#Eliminar linha
+data <-  data[-1,]
+# retirar . dos numeros
+data$`Não especialistas` <- gsub("\\.","",data$`Não especialistas`)
+data$Total <- gsub("\\.","",data$Total)
+data$`Cirurgia geral` <- gsub("\\.","",data$`Cirurgia geral`)
+data$Estomatologia <- gsub("\\.","",data$Estomatologia)
+data$`Ginecologia e Obstetrícia`<- gsub("\\.","",data$`Ginecologia e Obstetrícia`)
+data$`Medicina geral e familiar`<- gsub("\\.","",data$`Medicina geral e familiar`)
+data$Oftalmologia <- gsub("\\.","",data$Oftalmologia)
+data$Ortopedia <- gsub("\\.","",data$Ortopedia)
+data$Pediatria <- gsub("\\.","",data$Pediatria)
+data$Psiquiatria <- gsub("\\.","",data$Psiquiatria)
+data$`Outras especialidades` <- gsub("\\.","",data$`Outras especialidades`)
+
+```
+
+
+# Todas {data-icon="fa-stethoscope" data-navmenu="Médicos Por Especialidades"}
+
+
+```{r, fig.width=10}
+lim <-  max(dfMPE1993$Médicos,dfMPE2020$Médicos)
+
+boxplot_MPE2020 <- ggplot(data = dfMPE2020, aes(x = Especialidade, y = Médicos, fill = Especialidade)) + 
+  geom_boxplot() +
+  ggtitle('Especialidades no ano de 2020 ') +
+  xlab('') +
+  ylab('') +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5),axis.text.x = element_blank())
+
+boxplot_MPE1993 <- ggplot(data = dfMPE1993, aes(x = Especialidade, y = Médicos, fill = Especialidade)) + 
+  geom_boxplot() +
+  ggtitle('Especialidades no ano de 1993') +
+  xlab('') +
+  ylab('') +
+  theme_minimal()+
+  theme(plot.title = element_text(hjust = 0.5),axis.text.x = element_blank()) +
+  ylim(0,lim)
+
+
+plot_grid(boxplot_MPE1993, boxplot_MPE2020)
+
+```
+
+
+# Clínica Geral {data-icon="fa-stethoscope" data-navmenu="Médicos Por Especialidades"}
+
+```{r}
+ggplotly(ggplot(data = df, aes(x = Country, y = CG2020)) + 
+  geom_bar(stat="identity", fill="steelblue") +
+  ggtitle('Número de médicos de Clínica Geral no ano de 2020 a nível Europeu') +
+  xlab('') +
+  ylab('') +
+  coord_flip() +
+  theme_minimal()
+  )
+```
+
+# Grupo de especialidades médicas {data-icon="fa-stethoscope" data-navmenu="Médicos Por Especialidades"}
+
+```{r}
+ggplotly(ggplot(data = df, aes(x = Country, y = GEM2020)) + 
+  geom_bar(stat="identity", fill="steelblue") +
+  ggtitle('Número de médicos do Grupo de Especialidades Médicas no ano de 2020 a nível Europeu') +
+  xlab('') +
+  ylab('') +
+  coord_flip() +
+  theme_minimal()
+  )
+```
+
+# Grupo de especialidades cirúrgicas {data-icon="fa-stethoscope" data-navmenu="Médicos Por Especialidades"}
+
+```{r}
+ggplotly(ggplot(data = df, aes(x = Country, y = GEC2020)) + 
+  geom_bar(stat="identity", fill="steelblue") +
+  ggtitle('Número de médicos do Grupo de Especialidades Cirúrgicas no ano de 2020 a nível Europeu') +
+  xlab('') +
+  ylab('') +
+  coord_flip() +
+  theme_minimal()
+  )
+```
+
+# Médicos Por 100 Mil Habitantes {data-icon="fa-stethoscope"}
+
+```{r}
+ggplotly(ggplot(data = df, aes(x = Country, y = MedicosPor100,)) + 
+  geom_bar(stat="identity", fill = 'steelblue') +
+  ggtitle('Médicos por 100 mil habitantes em 2020 ') +
+  xlab('') +
+  ylab('') +
+  coord_flip() +
+  theme_minimal()
+  )
+
+```
+
+
+# Scatter plot {data-icon="fa-chart-scatter" data-navmenu="Gráficos Interativos"}
+
+## Input {.sidebar data-width=320}
+
+```{r}
+selectInput("x_select", label = h3("Seleciona o eixo do x"),
+            choices = list("Percentagem do PIB investida no setor da saúde" = "PIB2020",
+                           "Número de médicos por 100 mil habitantes" = "MedicosPor100",
+                           "Número de médicos em clínica geral" = "CG2020",
+                           "Número de médicos noutras especialidades" = "GEM2020",
+                           "Número de médicos em especialidades cirúrgicas" = "GEC2020"),
+            selected = "PIB2020")
+selectInput("y_select", label = h3("Seleciona o eixos do y"),
+            choices = list("Percentagem do PIB investida no setor da saúde" = "PIB2020",
+                           "Número de médicos por 100 mil habitantes" = "MedicosPor100",
+                           "Número de médicos em clínica geral" = "CG2020",
+                           "Número de médicos noutras especialidades" = "GEM2020",
+                           "Número de médicos em especialidades cirúrgicas" = "GEC2020"),
+            selected = "MedicosPor100")
+                       
+```
+
+## Plot {data-width=350}
+
+
+```{r}
+renderPlot({
+  dat <- read_excel("df.xlsx", col_types = c('text', 'numeric', 'numeric', 'numeric', 'numeric',
+                                             'numeric'))
+  dat <- as.data.frame(dat)
+  dat$Country = substring(dat$Country, 5)
+  x_ax <- dat[,input$x_select]
+  y_ax <- dat[,input$y_select]
+  ggplot(data = dat, aes(x = x_ax, y = y_ax)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    geom_text(label=dat$Country, hjust=0.5, vjust=1.5) +
+    xlab('') +
+    ylab('')
+  })
+
+```
+
+# Boxplot {data-icon="fa-box-open" data-navmenu="Gráficos Interativos"}
+
+## Input {.sidebar data-width=320}
+
+```{r}
+selectInput("boxplot_select", label = h3("Seleciona dos dados para ver o boxplot de :"),
+                             choices = list("Percentagem do PIB investida no setor da saúde" = "PIB2020",
+                                            "Número de médicos por 100 mil habitantes" = "MedicosPor100",
+                                            "Número de médicos em clínica geral" = "CG2020",
+                                            "Número de médicos noutras especialidades" = "GEM2020",
+                                            "Número de médicos em especialidades cirúrgicas" = "GEC2020"),
+                             selected = "PIB2020")
+```
+
+## Plot {data-width=350}
+
+```{r}
+renderPlot({
+  dat <- read_excel("df.xlsx", col_types = c('text', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
+  dat <- as.data.frame(dat)
+  y_ax <- dat[,input$boxplot_select]
+  ggplot(data = dat, aes(x = "", y = y_ax)) + 
+    geom_boxplot(fill="steelblue") +
+    xlab('') +
+    ylab('') +
+    theme_minimal()
+})
+```
+
+# Barchart {data-icon="fa-chart-simple" data-navmenu="Gráficos Interativos"}
+
+## Input {.sidebar data-width=320}
+
+```{r}
+selectInput("barplot_select", label = h3("Seleciona os dados para ver o barplot por País"),
+                              choices = list("Percentagem do PIB investida no setor da saúde" = "PIB2020",
+                                             "Número de médicos por 100 mil habitantes" = "MedicosPor100",
+                                             "Número de médicos em clínica geral" = "CG2020",
+                                             "Número de médicos noutras especialidades" = "GEM2020",
+                                             "Número de médicos em especialidades cirúrgicas" = "GEC2020"),
+                             selected = "PIB2020")
+```
+
+## Plot {data-width=150}
+
+```{r}
+renderPlot({
+  dat <- read_excel("df.xlsx", col_types = c('text', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
+  dat <- as.data.frame(dat)
+  x_ax <- dat$Country
+  y_ax <- dat[,input$barplot_select]
+  ggplot(data = dat, aes(x = x_ax, y = y_ax)) + 
+    geom_bar(stat="identity", fill="steelblue") +xlab('') +
+    ylab('') +
+    coord_flip() +
+    theme_minimal()
+    
+})
+```
+
+# Portugal {data-icon="fa-flag" data-navmenu="Gráficos Interativos"}
+
+## Input {.sidebar data-width=320}
+
+```{r}
+selectInput(inputId = "select1", label = h3("Especialidade:"),
+                                         choices = c(data %>% select(5:13) %>% colnames()),
+                                         multiple = F)
+                     
+```
+
+## Plot {data-width=350}
+
+```{r}
+renderPlot({
+    x <- data %>% select(input$select1)
+    x    <- na.omit(x)
+    y    <- data$Anos
+    
+    plot(x,y, col = "black",
+         xlab = "número de médicos",
+         ylab ='anos',
+         main = paste("Médicos da especialidade ",input$select1))
+    
+})
+```
+
+
+# Informações {data-icon="fa-info"} 
+
+
+<b>Grupo de especialidades médicas</b>
+
+<b>Inclui:</b> Medicina Interna; Cardiologia; Endocrinologia; Gastroenterologia; Pneumologia; Medicina Respiratória; Oncologia; Oncologia Ginecológica; Imunologia; Reumatologia; Neurologia; Otorrinolaringologia; Radiologia; Doenças infecciosas; Microbiologia-Bacteriologia; Hematologia; Dermatologia; Patologia; Medicina Ocupacional; Medicina Comunitária; Médicos internos em formação nestas especialidades.
+
+
+<b>Grupo de especialidades cirúrgicas</b>	
+
+<b>Inclui:</b> Cirurgia Geral; Neurocirurgia; Cirurgia Plástica; Ortopedia; Oftalmologia; Urologia; Outros tipos de cirurgia; Anestesiologia; Cuidados Intensivos; Medicina de Acidentes e de Emergência; Médicos internos em formação nestas especialidades.
+
+<br></br>
+
+<b>Para ver os dados utilizados nesta análise e toda a sua metainformação clique: </b>
+
+<a href="https://www.pordata.pt/europa/medicos+por+algumas+especialidades-1277">Médicos Por Especialidade Europa</a>
+
+<a href="https://www.pordata.pt/europa/medicos+por+100+mil+habitantes-1926">Médicos Por 100 Mil Habitantes</a>
+
+<a href="https://www.pordata.pt/europa/despesa+em+cuidados+de+saude+em+percentagem+do+pib-1962">Despesa em cuidados de saúde em % do PIB</a>
+
+<a href="https://www.pordata.pt/portugal/medicos+nao+especialistas+e+especialistas+por+especialidade-147">Médicos Por Especialidade Portugal</a>
